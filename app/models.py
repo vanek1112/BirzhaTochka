@@ -11,9 +11,7 @@ from app.schemas import OrderDirection
 Base = declarative_base()
 
 
-# --------------------------
 # Enums
-# --------------------------
 class UserRole(str, PyEnum):
     USER = "USER"
     ADMIN = "ADMIN"
@@ -31,9 +29,7 @@ class OrderStatus(str, PyEnum):
     CANCELLED = "CANCELLED"
 
 
-# --------------------------
-# SQLAlchemy Models (Database Tables)
-# --------------------------
+# SQLAlchemy Models
 class UserDB(Base):
     __tablename__ = "users"
 
@@ -49,7 +45,7 @@ class BalanceDB(Base):
     __tablename__ = "balances"
 
     user_id = Column(UUID, ForeignKey("users.id"), primary_key=True)
-    ticker = Column(String(10), primary_key=True)  # Пример: "RUB", "MEMCOIN"
+    ticker = Column(String(10), primary_key=True)
     amount = Column(Integer, default=0)
 
 
@@ -86,9 +82,7 @@ class TransactionDB(Base):
     order_id = Column(UUID, ForeignKey("orders.id"))
 
 
-# --------------------------
-# Pydantic Models (Request/Validation)
-# --------------------------
+# Pydantic Models
 class UserCreate(BaseModel):
     name: str = Field(..., min_length=3, example="John Doe")
 

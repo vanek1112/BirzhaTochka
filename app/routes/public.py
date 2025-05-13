@@ -7,8 +7,9 @@ from app.schemas import NewUser
 from app.services.auth import generate_api_key
 from app.services.orderbook import OrderBook
 
+
 router = APIRouter()
-orderbook = OrderBook()  # In-memory хранилище
+orderbook = OrderBook()
 
 
 @router.post("/api/v1/public/register")
