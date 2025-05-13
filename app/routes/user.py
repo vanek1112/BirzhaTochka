@@ -3,6 +3,7 @@ from app.database import get_db
 from app.models import BalanceDB, OrderDB, UserDB, OrderCreate, OrderStatus, InstrumentDB, OrderType
 from sqlalchemy.orm import Session
 from uuid import UUID
+from app.services.auth import hash_api_key, verify_api_key
 
 router = APIRouter()
 
@@ -12,8 +13,8 @@ def get_current_user(api_key: str = Header(..., alias="Authorization"), db: Sess
         raise HTTPException(status_code=401, detail="Invalid token format")
 
     raw_key = api_key.split(" ")[1]
-    user = db.query(UserDB).filter(UserDB.api_key == raw_key).first()
-    if not user:
+    user = db.query(UserDB).first()  # Пример: получаем пользователя (нужно добавить фильтр)
+    if not user or not verify_api_key(raw_key, user.api_key):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 

@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from enum import Enum as PyEnum
 import uuid
+from app.schemas import OrderDirection
+
 
 Base = declarative_base()
 
@@ -106,7 +108,8 @@ class InstrumentCreate(BaseModel):
 class OrderCreate(BaseModel):
     ticker: str
     type: OrderType
-    price: float | None = Field(gt=0)  # Обязательно для LIMIT
+    direction: OrderDirection
+    price: float | None = Field(None, gt=0)
     qty: int = Field(gt=0)
 
     @validator("price")
@@ -121,3 +124,13 @@ class TransactionResponse(BaseModel):
     amount: int
     price: float
     timestamp: datetime
+
+class DepositRequest(BaseModel):
+    user_id: uuid.UUID
+    ticker: str
+    amount: int = Field(..., gt=0)
+
+class WithdrawRequest(BaseModel):
+    user_id: uuid.UUID
+    ticker: str
+    amount: int = Field(..., gt=0)

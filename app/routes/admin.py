@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db
 from uuid import UUID
-from app.models import UserDB, InstrumentDB, BalanceDB
+from app.models import UserDB, InstrumentDB, BalanceDB, WithdrawRequest
 from sqlalchemy.orm import Session
 from app.routes.user import get_current_user
+from app.services.balances import update_balance
+
 
 router = APIRouter(prefix="/api/v1/admin")
 
@@ -70,3 +72,26 @@ async def delete_instrument(
     db.delete(instrument)
     db.commit()
     return {"status": "deleted"}
+
+@router.post("/balance/withdraw")
+async def withdraw_balance(
+    withdraw_data: WithdrawRequest,
+    db: Session = Depends(get_db),
+    _: UserDB = Depends(verify_admin)
+):
+    user = db.query(UserDB).filter(UserDB.id == withdraw_data.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        update_balance(
+            user_id=withdraw_data.user_id,
+            ticker=withdraw_data.ticker,
+            amount=withdraw_data.amount,
+            db=db,
+            is_deposit=False  # Списание средств
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"status": "success"}

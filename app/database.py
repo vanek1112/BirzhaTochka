@@ -1,37 +1,28 @@
-from sqlalchemy import Column, String, UUID, Enum, Integer, Float, ForeignKey, DateTime
+from sqlalchemy import Column, String, UUID, Enum, Integer, Float, ForeignKey, DateTime, NullPool
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel, Field, validator
-import os
+import psycopg2
 import ssl
 
+def create_psycopg2_connection():
+    return psycopg2.connect("""
+    host=rc1a-202opm4h7wa25idi.mdb.yandexcloud.net,rc1b-u55xsfzl9r2181yo.mdb.yandexcloud.net
+    port=6432
+    sslmode=verify-full
+    dbname=tochka
+    user=chernov
+    password=chernov1112
+    target_session_attrs=read-write
+""")
 
-DB_HOST = "rc1a-8mmdgrpd32sl3pug.mdb.yandexcloud.net"
-DB_PORT = 6432
-DB_NAME = "tochka"
-DB_USER = "chernov"
-DB_PASSWORD = "chernov1112"
-SSL_CERT = "C:\\Users\chern\.postgresql\\root.crt"
-
-# Получение URL БД из переменных окружения (для гибкости)
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
-# SSL-конфигурация
-ssl_context = ssl.create_default_context(cafile=SSL_CERT)
-ssl_context.verify_mode = ssl.CERT_REQUIRED
-
-# Создание движка БД
 engine = create_engine(
-    DATABASE_URL,
-    connect_args={
-        "sslmode": "verify-full",
-        "sslrootcert": SSL_CERT,
-        "target_session_attrs": "read-write",
-        "ssl": ssl_context
-    },
-    pool_pre_ping=True
+    "postgresql+psycopg2://",
+    creator=create_psycopg2_connection,
+    poolclass=NullPool
 )
+
 
 # Сессия для взаимодействия с БД
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
