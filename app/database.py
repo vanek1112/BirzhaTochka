@@ -13,7 +13,7 @@ def create_psycopg2_connection():
     sslmode=verify-full
     dbname=tochka
     user=chernov
-    password=chernov1112
+    password=chernov_tochka2025
     target_session_attrs=read-write
 """)
 
@@ -42,7 +42,7 @@ def get_db() -> Session:
         db.close()
 
 
-# Добавим модель для баланса
+# Модель для баланса
 class BalanceDB(Base):
     __tablename__ = "balances"
 

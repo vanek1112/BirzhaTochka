@@ -1,11 +1,11 @@
-from fastapi import APIRouter, HTTPException, Path, Depends, HTTPException
-from sqlalchemy.orm import sessionmaker, Session
+from fastapi import APIRouter, Path, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.database import SessionLocal
 from app.database import get_db
 from app.models import UserDB, InstrumentDB, TransactionDB
 from app.schemas import NewUser
 from app.services.auth import generate_api_key
 from app.services.orderbook import OrderBook
-from app.database import SessionLocal
 
 router = APIRouter()
 orderbook = OrderBook()  # In-memory хранилище
@@ -33,7 +33,7 @@ async def register(user_data: NewUser):
     finally:
         db.close()
 
-    return {"api_key": raw_key}  # Возвращаем исходный ключ клиенту
+    return {"api_key": raw_key}
 
 
 @router.get("/api/v1/public/orderbook/{ticker}")

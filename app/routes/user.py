@@ -1,9 +1,9 @@
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Header
+from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import BalanceDB, OrderDB, UserDB, OrderCreate, OrderStatus, InstrumentDB, OrderType
-from sqlalchemy.orm import Session
-from uuid import UUID
-from app.services.auth import hash_api_key, verify_api_key
+from app.services.auth import verify_api_key
 
 router = APIRouter()
 
@@ -13,7 +13,7 @@ def get_current_user(api_key: str = Header(..., alias="Authorization"), db: Sess
         raise HTTPException(status_code=401, detail="Invalid token format")
 
     raw_key = api_key.split(" ")[1]
-    user = db.query(UserDB).first()  # Пример: получаем пользователя (нужно добавить фильтр)
+    user = db.query(UserDB).first()
     if not user or not verify_api_key(raw_key, user.api_key):
         raise HTTPException(status_code=404, detail="User not found")
     return user
@@ -39,7 +39,6 @@ async def create_order(
     if not instrument:
         raise HTTPException(status_code=404, detail="Instrument not found")
 
-    # Создание ордера
     new_order = OrderDB(
         user_id=user.id,
         ticker=order_data.ticker,
@@ -52,9 +51,7 @@ async def create_order(
     db.add(new_order)
     db.commit()
 
-    # Логика исполнения ордера (упрощённо)
     if order_data.type == OrderType.MARKET:
-        # Исполнение по рыночной цене (заглушка)
         pass
 
     return {"order_id": new_order.id}

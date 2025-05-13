@@ -32,7 +32,7 @@ async def delete_user(
 
 @router.post("/balance/deposit")
 async def deposit_balance(
-        deposit_data: dict,  # Модель Body_deposit_api_v1_admin_balance_deposit_post
+        deposit_data: dict,
         db: Session = Depends(get_db),
         _: UserDB = Depends(verify_admin)
 ):

@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field, validator
-from typing import Optional
 from datetime import datetime
 from enum import Enum
+
+from pydantic import BaseModel, Field
+
 
 class NewUser(BaseModel):
     name: str = Field(..., min_length=3, example="Иван Иванов")

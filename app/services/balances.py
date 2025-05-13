@@ -9,7 +9,6 @@ def update_balance(
     db: Session,
     is_deposit: bool = True  # True для пополнения, False для списания
 ) -> None:
-    """Обновление баланса пользователя атомарно."""
     balance = db.query(BalanceDB).filter(
         BalanceDB.user_id == user_id,
         BalanceDB.ticker == ticker
