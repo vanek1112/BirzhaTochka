@@ -7,6 +7,10 @@ from pydantic import BaseModel, Field
 class NewUser(BaseModel):
     name: str = Field(..., min_length=3, example="Иван Иванов")
 
+class InstrumentCreate(BaseModel):
+    name: str = Field(..., example="Memcoin")
+    ticker: str = Field(..., pattern=r"^[A-Z]{2,10}$", example="MEMCOIN")
+
 class BalanceResponse(BaseModel):
     ticker: str
     amount: int

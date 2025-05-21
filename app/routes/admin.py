@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db
 from uuid import UUID
-from app.models import UserDB, InstrumentDB, BalanceDB, WithdrawRequest
+from app.models import UserDB, InstrumentDB, BalanceDB, WithdrawRequest, InstrumentCreate
 from sqlalchemy.orm import Session
 from app.routes.user import get_current_user
 from app.services.balances import update_balance
@@ -13,6 +13,30 @@ router = APIRouter(prefix="/api/v1/admin")
 def verify_admin(user: UserDB = Depends(get_current_user)):
     if user.role != "ADMIN":
         raise HTTPException(status_code=403, detail="Forbidden")
+
+
+@router.post("/instrument")
+async def create_instrument(
+        instrument_data: InstrumentCreate,
+        db: Session = Depends(get_db),
+        _: UserDB = Depends(verify_admin)
+):
+    existing_instrument = db.query(InstrumentDB).filter(
+        InstrumentDB.ticker == instrument_data.ticker
+    ).first()
+
+    if existing_instrument:
+        raise HTTPException(400, detail="Instrument already exists")
+
+    new_instrument = InstrumentDB(
+        ticker=instrument_data.ticker,
+        name=instrument_data.name
+    )
+
+    db.add(new_instrument)
+    db.commit()
+
+    return {"status": "success", "ticker": new_instrument.ticker}
 
 
 @router.delete("/user/{user_id}")
