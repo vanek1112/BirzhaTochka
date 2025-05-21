@@ -21,6 +21,7 @@ async def create_instrument(
         db: Session = Depends(get_db),
         _: UserDB = Depends(verify_admin)
 ):
+
     existing_instrument = db.query(InstrumentDB).filter(
         InstrumentDB.ticker == instrument_data.ticker
     ).first()
