@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db
 from uuid import UUID
-from app.models import UserDB, InstrumentDB, BalanceDB, WithdrawRequest, InstrumentCreate
+from app.models import UserDB, InstrumentDB, BalanceDB, WithdrawRequest, InstrumentCreate, UserRole
 from sqlalchemy.orm import Session
 from app.routes.user import get_current_user
 from app.services.balances import update_balance
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/v1/admin")
 
 
 def verify_admin(user: UserDB = Depends(get_current_user)):
-    if user.role != "ADMIN":
+    if user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
