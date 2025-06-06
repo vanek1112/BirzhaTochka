@@ -2,7 +2,7 @@ from fastapi import APIRouter, Path, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.database import get_db
-from app.models import UserDB, InstrumentDB, TransactionDB
+from app.models import UserDB, InstrumentDB, TransactionDB, UserRole
 from app.schemas import NewUser
 from app.services.auth import generate_api_key
 from app.services.orderbook import OrderBook
@@ -16,25 +16,30 @@ orderbook = OrderBook()
 async def register(user_data: NewUser):
     db = SessionLocal()
 
-    # Генерация ключа
     raw_key, hashed_key = generate_api_key()
 
-    # Сохранение пользователя
     new_user = UserDB(
         name=user_data.name,
-        api_key=hashed_key
+        api_key=hashed_key,
+        role=UserRole.USER
     )
 
     try:
         db.add(new_user)
         db.commit()
+        db.refresh(new_user)
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail="Ошибка регистрации")
     finally:
         db.close()
 
-    return {"api_key": raw_key}
+    return {
+        "id": str(new_user.id),
+        "name": new_user.name,
+        "role": new_user.role.value,
+        "api_key": raw_key
+    }
 
 
 @router.get("/api/v1/public/orderbook/{ticker}")
