@@ -76,8 +76,7 @@ class MatchingEngine:
                 opposite_order.user_id,
                 ticker,
                 match_qty,
-                match_price,
-                order.body.direction
+                match_price
             )
 
             opposite_order.filled += match_qty
@@ -124,8 +123,7 @@ class MatchingEngine:
                 opposite_order.user_id,
                 ticker,
                 match_qty,
-                match_price,
-                order.body.direction
+                match_price
             )
 
             opposite_order.filled += match_qty
