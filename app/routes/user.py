@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Union, List, Dict
 from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException
@@ -23,7 +23,7 @@ async def create_order(
         raise HTTPException(status_code=404, detail="Instrument not found")
 
     order_id = uuid4()
-    timestamp = datetime.now()
+    timestamp = datetime.now(timezone.utc)
 
     if isinstance(body, MarketOrderBody):
         order = MarketOrder(

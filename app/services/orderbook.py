@@ -2,7 +2,7 @@ import asyncio
 from typing import Union
 from uuid import UUID
 from fastapi import HTTPException
-from datetime import datetime
+from datetime import datetime, timezone
 from app.database import storage, Storage
 from app.schemas import Direction, OrderStatus, Transaction, LimitOrder, MarketOrder
 
@@ -165,7 +165,7 @@ class MatchingEngine:
             ticker=ticker,
             amount=qty,
             price=price,
-            timestamp=datetime.now()
+            timestamp=datetime.now(timezone.utc)
         )
         self.storage.transactions.append(transaction)
 

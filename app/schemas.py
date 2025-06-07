@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List
-from pydantic import BaseModel, Field, validator
-from datetime import datetime
+from pydantic import BaseModel, Field, validator, field_validator
+from datetime import datetime, timezone
 from uuid import UUID
 
 class Direction(str, Enum):
@@ -64,12 +64,26 @@ class LimitOrder(BaseModel):
     body: LimitOrderBody
     filled: int = 0
 
+    @field_validator('timestamp')
+    @classmethod
+    def ensure_timezone(cls, v: datetime) -> datetime:
+        if v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        return v
+
 class MarketOrder(BaseModel):
     id: UUID
     status: OrderStatus
     user_id: UUID
     timestamp: datetime
     body: MarketOrderBody
+
+    @field_validator('timestamp')
+    @classmethod
+    def ensure_timezone(cls, v: datetime) -> datetime:
+        if v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        return v
 
 class CreateOrderResponse(BaseModel):
     success: bool = True
