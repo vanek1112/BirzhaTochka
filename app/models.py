@@ -1,3 +1,5 @@
+"""from typing import Optional
+
 from sqlalchemy import Column, String, UUID, Enum, Integer, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -128,3 +130,19 @@ class WithdrawRequest(BaseModel):
     user_id: uuid.UUID
     ticker: str
     amount: int = Field(..., gt=0)
+
+class InstrumentResponse(BaseModel):
+    name: str
+    ticker: str = Field(..., pattern=r"^[A-Z]{2,10}$")
+
+class OrderResponse(BaseModel):
+    id: uuid.UUID
+    status: OrderStatus
+    user_id: uuid.UUID
+    timestamp: datetime
+    # Для лимитных ордеров
+    price: Optional[int] = None
+    qty: int
+    direction: OrderDirection
+    type: OrderType
+    filled: int = 0"""

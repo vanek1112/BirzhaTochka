@@ -1,88 +1,95 @@
-from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy.orm import Session
-from app.database import get_db
-from app.models import BalanceDB, OrderDB, UserDB, OrderCreate, OrderStatus, InstrumentDB, OrderType
-from app.services.auth import verify_api_key
+from datetime import datetime
+from typing import Union, List
+from uuid import UUID, uuid4
+from fastapi import APIRouter, Depends, HTTPException
+from app.database import storage
+from app.schemas import (CreateOrderResponse, Ok, LimitOrderBody, MarketOrderBody, LimitOrder, MarketOrder, OrderStatus)
+from app.services.auth import get_current_user
+from app.services.orderbook import matching_engine
 
 router = APIRouter()
 
 
-def get_current_user(api_key: str = Header(..., alias="Authorization"), db: Session = Depends(get_db)):
-    if not api_key.startswith("TOKEN "):
-        raise HTTPException(status_code=401, detail="Invalid token format")
-
-    raw_key = api_key.split(" ")[1]
-    user = db.query(UserDB).first()
-    if not user or not verify_api_key(raw_key, user.api_key):
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-
-@router.get("/api/v1/balance")
-async def get_balance(
-        user: UserDB = Depends(get_current_user),
-        db: Session = Depends(get_db)
-) -> dict:
-    balances = db.query(BalanceDB).filter(BalanceDB.user_id == user.id).all()
-    return {b.ticker: b.amount for b in balances}
-
-
-@router.post("/api/v1/order")
+@router.post("/api/v1/order", response_model=CreateOrderResponse, tags=["order"])
 async def create_order(
-        order_data: OrderCreate,
-        user: UserDB = Depends(get_current_user),
-        db: Session = Depends(get_db)
+        body: Union[LimitOrderBody, MarketOrderBody],
+        user_id: UUID = Depends(get_current_user)
 ):
-    # Проверка инструмента
-    instrument = db.query(InstrumentDB).filter(InstrumentDB.ticker == order_data.ticker).first()
-    if not instrument:
+    if body.ticker not in storage.instruments:
         raise HTTPException(status_code=404, detail="Instrument not found")
 
-    new_order = OrderDB(
-        user_id=user.id,
-        ticker=order_data.ticker,
-        type=order_data.type,
-        price=order_data.price,
-        qty=order_data.qty,
-        status=OrderStatus.NEW
-    )
+    order_id = uuid4()
+    timestamp = datetime.now()
 
-    db.add(new_order)
-    db.commit()
+    if isinstance(body, MarketOrderBody):
+        order = MarketOrder(
+            id=order_id,
+            status=OrderStatus.NEW,
+            user_id=user_id,
+            timestamp=timestamp,
+            body=body
+        )
+    else:
+        order = LimitOrder(
+            id=order_id,
+            status=OrderStatus.NEW,
+            user_id=user_id,
+            timestamp=timestamp,
+            body=body,
+            filled=0
+        )
 
-    if order_data.type == OrderType.MARKET:
-        pass
+    storage.orders[order_id] = order
 
-    return {"order_id": new_order.id}
+    try:
+        await matching_engine.process_order(order, user_id)
+    except Exception as e:
+        del storage.orders[order_id]
+        raise e
 
-
-@router.get("/api/v1/order")
-async def list_orders(
-        user: UserDB = Depends(get_current_user),
-        db: Session = Depends(get_db)
-):
-    orders = db.query(OrderDB).filter(
-        OrderDB.user_id == user.id,
-        OrderDB.status.in_([OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED])
-    ).all()
-    return orders
+    return CreateOrderResponse(order_id=order_id)
 
 
-@router.delete("/api/v1/order/{order_id}")
-async def cancel_order(
-        order_id: UUID,
-        user: UserDB = Depends(get_current_user),
-        db: Session = Depends(get_db)
-):
-    order = db.query(OrderDB).filter(
-        OrderDB.id == order_id,
-        OrderDB.user_id == user.id
-    ).first()
+@router.get("/api/v1/order", response_model=List[Union[LimitOrder, MarketOrder]], tags=["order"])
+async def list_orders(user_id: UUID = Depends(get_current_user)):
+    user_orders = [
+        order for order in storage.orders.values()
+        if order.user_id == user_id and order.status in [OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED]
+    ]
+    return user_orders
+
+
+@router.get("/api/v1/order/{order_id}", response_model=Union[LimitOrder, MarketOrder], tags=["order"])
+async def get_order(order_id: UUID, user_id: UUID = Depends(get_current_user)):
+    order = storage.orders.get(order_id)
 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    if order.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not your order")
+
+    return order
+
+
+@router.delete("/api/v1/order/{order_id}", response_model=Ok, tags=["order"])
+async def cancel_order(order_id: UUID, user_id: UUID = Depends(get_current_user)):
+    order = storage.orders.get(order_id)
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not your order")
+
+    if order.status not in [OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED]:
+        raise HTTPException(status_code=400, detail="Order cannot be cancelled")
+
+    if isinstance(order, LimitOrder):
+        ticker = order.body.ticker
+        if ticker in storage.order_books and order in storage.order_books[ticker][order.body.direction]:
+            storage.order_books[ticker][order.body.direction].remove(order)
+
     order.status = OrderStatus.CANCELLED
-    db.commit()
-    return {"status": "cancelled"}
+
+    return Ok()

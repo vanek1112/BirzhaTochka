@@ -1,63 +1,69 @@
-from fastapi import APIRouter, Path, Depends, HTTPException
-from sqlalchemy.orm import Session
-from app.database import SessionLocal
-from app.database import get_db
-from app.models import UserDB, InstrumentDB, TransactionDB, UserRole
-from app.schemas import NewUser
-from app.services.auth import generate_api_key
-from app.services.orderbook import OrderBook
-
+from typing import List
+from uuid import uuid4
+from fastapi import APIRouter, HTTPException
+from app.database import storage
+from app.schemas import (NewUser, User, UserRole, Instrument,
+                         L2OrderBook, Direction, OrderStatus, Level, Transaction)
 
 router = APIRouter()
-orderbook = OrderBook()
 
 
-@router.post("/api/v1/public/register")
-async def register(user_data: NewUser):
-    db = SessionLocal()
+@router.post("/api/v1/public/register", response_model=User, tags=["public"])
+async def register(new_user: NewUser):
+    user_id = uuid4()
+    api_key = f"key-{uuid4()}"
 
-    raw_key, hashed_key = generate_api_key()
-
-    new_user = UserDB(
-        name=user_data.name,
-        api_key=hashed_key,
-        role=UserRole.USER
+    user = User(
+        id=user_id,
+        name=new_user.name,
+        role=UserRole.USER,
+        api_key=api_key
     )
 
-    try:
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Ошибка регистрации")
-    finally:
-        db.close()
+    storage.users[user_id] = user
+    storage.api_keys[api_key] = user_id
+    storage.balances[user_id] = {"RUB": 0}
 
-    return {
-        "id": str(new_user.id),
-        "name": new_user.name,
-        "role": new_user.role.value,
-        "api_key": raw_key
-    }
+    return user
 
 
-@router.get("/api/v1/public/orderbook/{ticker}")
-async def get_orderbook(
-        ticker: str = Path(..., description="Тикер инструмента"),
-        limit: int = 10
-):
-    if limit > 25:
-        raise HTTPException(status_code=400, detail="Лимит не может превышать 25")
+@router.get("/api/v1/public/instrument", response_model=List[Instrument], tags=["public"])
+async def list_instruments():
+    return list(storage.instruments.values())
 
-    return orderbook.get_l2_data(ticker, limit)
 
-@router.get("/api/v1/public/instrument")
-async def list_instruments(db: Session = Depends(get_db)):
-    instruments = db.query(InstrumentDB).all()
-    return [{"name": i.name, "ticker": i.ticker} for i in instruments]
+@router.get("/api/v1/public/orderbook/{ticker}", response_model=L2OrderBook, tags=["public"])
+async def get_orderbook(ticker: str, limit: int = 10):
+    if ticker not in storage.instruments:
+        raise HTTPException(status_code=404, detail="Instrument not found")
 
-@router.get("/api/v1/public/transactions/{ticker}")
-async def get_transactions(ticker: str, db: Session = Depends(get_db)):
-    transactions = db.query(TransactionDB).filter(TransactionDB.ticker == ticker).all()
-    return transactions
+    order_book = storage.order_books.get(ticker, {Direction.BUY: [], Direction.SELL: []})
+
+    bid_levels = {}
+    ask_levels = {}
+
+    for order in order_book[Direction.BUY]:
+        if order.status in [OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED]:
+            price = order.body.price
+            qty = order.body.qty - order.filled
+            bid_levels[price] = bid_levels.get(price, 0) + qty
+
+    for order in order_book[Direction.SELL]:
+        if order.status in [OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED]:
+            price = order.body.price
+            qty = order.body.qty - order.filled
+            ask_levels[price] = ask_levels.get(price, 0) + qty
+
+    bids = sorted([Level(price=p, qty=q) for p, q in bid_levels.items()], key=lambda x: x.price, reverse=True)[:limit]
+    asks = sorted([Level(price=p, qty=q) for p, q in ask_levels.items()], key=lambda x: x.price)[:limit]
+
+    return L2OrderBook(bid_levels=bids, ask_levels=asks)
+
+
+@router.get("/api/v1/public/transactions/{ticker}", response_model=List[Transaction], tags=["public"])
+async def get_transaction_history(ticker: str, limit: int = 10):
+    if ticker not in storage.instruments:
+        raise HTTPException(status_code=404, detail="Instrument not found")
+
+    ticker_transactions = [t for t in storage.transactions if t.ticker == ticker]
+    return sorted(ticker_transactions, key=lambda x: x.timestamp, reverse=True)[:limit]
