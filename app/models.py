@@ -1,5 +1,4 @@
 """from typing import Optional
-
 from sqlalchemy import Column, String, UUID, Enum, Integer, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base

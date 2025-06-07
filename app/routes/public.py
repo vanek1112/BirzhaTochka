@@ -5,8 +5,8 @@ from app.database import storage
 from app.schemas import (NewUser, User, UserRole, Instrument,
                          L2OrderBook, Direction, OrderStatus, Level, Transaction)
 
-router = APIRouter()
 
+router = APIRouter()
 
 @router.post("/api/v1/public/register", response_model=User, tags=["public"])
 async def register(new_user: NewUser):

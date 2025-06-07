@@ -1,6 +1,5 @@
 from enum import Enum
 from typing import List
-
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from uuid import UUID

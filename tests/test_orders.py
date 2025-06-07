@@ -10,4 +10,5 @@ def test_create_order():
         headers={"Authorization": "TOVALIDKEY"},
         json={"ticker": "MEMCOIN", "type": "LIMIT", "price": 100, "qty": 5}
     )
+
     assert response.status_code == 200

@@ -9,7 +9,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> UUID:
     if not authorization or not authorization.startswith("TOKEN "):
         raise HTTPException(status_code=401, detail="Invalid authorization header")
 
-    api_key = authorization[6:]
+    api_key = authorization[6: ]
     user_id = storage.api_keys.get(api_key)
 
     if not user_id:

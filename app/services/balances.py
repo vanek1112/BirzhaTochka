@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+"""from sqlalchemy.orm import Session
 from app.models import BalanceDB
 from uuid import UUID
 
@@ -28,4 +28,4 @@ def update_balance(
                 raise ValueError("Недостаточно средств")
             balance.amount -= amount
 
-    db.commit()
+    db.commit()"""

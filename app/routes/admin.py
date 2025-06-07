@@ -1,12 +1,11 @@
 from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException
 from app.database import storage
 from app.schemas import Ok, DepositBody, WithdrawBody, User, Instrument, OrderStatus, LimitOrder, Direction
 from app.services.auth import get_admin_user
 
-router = APIRouter()
 
+router = APIRouter()
 
 @router.delete("/api/v1/admin/user/{user_id}", response_model=User, tags=["admin", "user"])
 async def delete_user(user_id: UUID, admin_id: UUID = Depends(get_admin_user)):
@@ -15,7 +14,6 @@ async def delete_user(user_id: UUID, admin_id: UUID = Depends(get_admin_user)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Cancel all user orders
     user_orders = [o for o in storage.orders.values() if o.user_id == user_id]
     for order in user_orders:
         if order.status in [OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED]:
@@ -25,7 +23,6 @@ async def delete_user(user_id: UUID, admin_id: UUID = Depends(get_admin_user)):
                 if ticker in storage.order_books and order in storage.order_books[ticker][order.body.direction]:
                     storage.order_books[ticker][order.body.direction].remove(order)
 
-    # Remove user
     del storage.users[user_id]
     del storage.api_keys[user.api_key]
     if user_id in storage.balances:

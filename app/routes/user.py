@@ -7,8 +7,8 @@ from app.schemas import (CreateOrderResponse, Ok, LimitOrderBody, MarketOrderBod
 from app.services.auth import get_current_user
 from app.services.orderbook import matching_engine
 
-router = APIRouter()
 
+router = APIRouter()
 
 @router.post("/api/v1/order", response_model=CreateOrderResponse, tags=["order"])
 async def create_order(
