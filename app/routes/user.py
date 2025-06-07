@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Union, List
+from typing import Union, List, Dict
 from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException
 from app.database import storage
@@ -9,6 +9,10 @@ from app.services.orderbook import matching_engine
 
 
 router = APIRouter()
+
+@router.get("/api/v1/balance", response_model=Dict[str, int], tags=["balance"])
+async def get_balances(user_id: UUID = Depends(get_current_user)):
+    return storage.balances.get(user_id, {})
 
 @router.post("/api/v1/order", response_model=CreateOrderResponse, tags=["order"])
 async def create_order(
