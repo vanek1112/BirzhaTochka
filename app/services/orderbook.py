@@ -154,6 +154,22 @@ class MatchingEngine:
     ):
         total_rub = qty * price
 
+        if buyer_id not in self.storage.balances:
+            self.storage.balances[buyer_id] = {}
+        if seller_id not in self.storage.balances:
+            self.storage.balances[seller_id] = {}
+
+        for user_id in [buyer_id, seller_id]:
+            self.storage.balances[user_id].setdefault("RUB", 0)
+            self.storage.balances[user_id].setdefault(ticker, 0)
+
+        seller_balance = self.storage.balances[seller_id][ticker]
+        if seller_balance < qty:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Seller {seller_id} has insufficient {ticker} balance"
+            )
+
         self.storage.balances[buyer_id]["RUB"] -= total_rub
         self.storage.balances[buyer_id][ticker] = self.storage.balances[buyer_id].get(ticker, 0) + qty
 

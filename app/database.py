@@ -18,7 +18,7 @@ class Storage:
         admin_id = uuid4()
         admin = User(
             id=admin_id,
-            name="admin",
+            name="Admin Petuh",
             role=UserRole.ADMIN,
             api_key=self.admin_api_key
         )

@@ -38,6 +38,10 @@ async def add_instrument(instrument: Instrument, admin_id: UUID = Depends(get_ad
 
     storage.instruments[instrument.ticker] = instrument
     storage.order_books[instrument.ticker] = {Direction.BUY: [], Direction.SELL: []}
+    for user_id, user_balances in storage.balances.items():
+        if user_id not in storage.users:
+            continue
+        user_balances.setdefault(instrument.ticker, 0)
 
     return Ok()
 
