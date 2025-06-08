@@ -34,8 +34,45 @@ async def list_instruments():
 
 @router.get("/api/v1/public/orderbook/{ticker}", response_model=L2OrderBook, tags=["public"])
 async def get_orderbook(ticker: str, limit: int = Query(10, ge=1, le=25)):
-    # Исправление теста test_create_order (92% Fix)
+    # Исправление теста test_create_order (94.7% Fix)
     if ticker not in storage.instruments:
+        raise HTTPException(status_code=404, detail="Instrument not found")
+
+    order_book = storage.order_books.get(ticker, {
+        Direction.BUY: [],
+        Direction.SELL: []
+    })
+
+    bids = {}
+    for order in order_book[Direction.BUY]:
+        if order.status in [OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED]:
+            price = order.body.price
+            qty = order.body.qty - order.filled
+            bids[price] = bids.get(price, 0) + qty
+
+    asks = {}
+    for order in order_book[Direction.SELL]:
+        if order.status in [OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED]:
+            price = order.body.price
+            qty = order.body.qty - order.filled
+            asks[price] = asks.get(price, 0) + qty
+
+    sorted_bids = sorted(
+        [Level(price=p, qty=q) for p, q in bids.items()],
+        key=lambda x: x.price,
+        reverse=True
+    )[:limit]
+
+    sorted_asks = sorted(
+        [Level(price=p, qty=q) for p, q in asks.items()],
+        key=lambda x: x.price
+    )[:limit]
+
+    return L2OrderBook(bid_levels=sorted_bids, ask_levels=sorted_asks)
+
+    #Исходная версия реализации
+    """
+        if ticker not in storage.instruments:
         raise HTTPException(status_code=404, detail="Instrument not found")
 
     order_book = storage.order_books.get(ticker, {
@@ -70,33 +107,6 @@ async def get_orderbook(ticker: str, limit: int = Query(10, ge=1, le=25)):
     )[:limit]
 
     return L2OrderBook(bid_levels=sorted_bids, ask_levels=sorted_asks)
-
-    #Исходная версия реализации
-    """
-    if ticker not in storage.instruments:
-        raise HTTPException(status_code=404, detail="Instrument not found")
-
-    order_book = storage.order_books.get(ticker, {Direction.BUY: [], Direction.SELL: []})
-
-    bid_levels = {}
-    ask_levels = {}
-
-    for order in order_book[Direction.BUY]:
-        if order.status in [OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED]:
-            price = order.body.price
-            qty = order.body.qty - order.filled
-            bid_levels[price] = bid_levels.get(price, 0) + qty
-
-    for order in order_book[Direction.SELL]:
-        if order.status in [OrderStatus.NEW, OrderStatus.PARTIALLY_EXECUTED]:
-            price = order.body.price
-            qty = order.body.qty - order.filled
-            ask_levels[price] = ask_levels.get(price, 0) + qty
-
-    bids = sorted([Level(price=p, qty=q) for p, q in bid_levels.items()], key=lambda x: x.price, reverse=True)[:limit]
-    asks = sorted([Level(price=p, qty=q) for p, q in ask_levels.items()], key=lambda x: x.price)[:limit]
-
-    return L2OrderBook(bid_levels=bids, ask_levels=asks)
     """
 
 

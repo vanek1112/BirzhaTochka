@@ -78,7 +78,44 @@ async def get_order(order_id: UUID, user_id: UUID = Depends(get_current_user)):
 
 @router.delete("/api/v1/order/{order_id}", response_model=Ok, tags=["order"])
 async def cancel_order(order_id: UUID, user_id: UUID = Depends(get_current_user)):
+    # Исправление теста test_cancel_order (94.7% Fix)
     order = storage.orders.get(order_id)
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not your order")
+
+    if isinstance(order, MarketOrder):
+        raise HTTPException(
+            status_code=400,
+            detail="Market orders cannot be cancelled"
+        )
+
+    if order.status in [OrderStatus.EXECUTED, OrderStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=400,
+            detail="Order cannot be cancelled (already executed or cancelled)"
+        )
+
+    if order.status == OrderStatus.PARTIALLY_EXECUTED:
+        raise HTTPException(
+            status_code=400,
+            detail="Partially executed orders cannot be cancelled"
+        )
+
+    ticker = order.body.ticker
+    if (ticker in storage.order_books and
+            order in storage.order_books[ticker][order.body.direction]):
+        storage.order_books[ticker][order.body.direction].remove(order)
+
+    order.status = OrderStatus.CANCELLED
+
+    return Ok()
+
+    # Исходная версия
+    """order = storage.orders.get(order_id)
 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -96,4 +133,4 @@ async def cancel_order(order_id: UUID, user_id: UUID = Depends(get_current_user)
 
     order.status = OrderStatus.CANCELLED
 
-    return Ok()
+    return Ok()"""
