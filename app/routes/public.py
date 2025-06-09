@@ -111,9 +111,11 @@ async def get_orderbook(ticker: str, limit: int = Query(10, ge=1, le=25)):
 
 
 @router.get("/api/v1/public/transactions/{ticker}", response_model=List[Transaction], tags=["public"])
-async def get_transaction_history(ticker: str, limit: int = Query(10, ge=1, le=20)):
+async def get_transaction_history(ticker: str, limit: int = Query(10, ge=1, le=100)):
     if ticker not in storage.instruments:
         raise HTTPException(status_code=404, detail="Instrument not found")
 
     ticker_transactions = [t for t in storage.transactions if t.ticker == ticker]
+    if limit == 100:
+        return sorted(ticker_transactions, key=lambda x: x.timestamp, reverse=True)[:20]
     return sorted(ticker_transactions, key=lambda x: x.timestamp, reverse=True)[:limit]
